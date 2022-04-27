@@ -19,15 +19,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: echo ::set-output name=version::${{ github.event.release.tag_name }}
-
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          release_name: Release ${{ steps.version.outputs.version }}
+        run: echo ::set-output name=version::$(git describe --abbrev=0 --tags)
 
       - name: Login to Github container registry
         uses: docker/login-action@v1
