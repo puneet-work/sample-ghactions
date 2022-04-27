@@ -19,7 +19,7 @@ jobs:
 
       - name: Determine version
         id: version
-        run: echo ::set-output name=version::$(git describe --abbrev=0 --tags)
+        run: echo ::set-output name=version::${{ github.event.release.tag_name }}
 
       - name: Create Release
         uses: actions/create-release@v1
