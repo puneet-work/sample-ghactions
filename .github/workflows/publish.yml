@@ -36,6 +36,6 @@ jobs:
         with:
           push: true
           context: .
-          file: Dockerfile-${{ matrix.dockerfile }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           tags: puneet-work/images/gh-img:${{steps.version.outputs.version}},puneet-work/images/gh-img:latest
