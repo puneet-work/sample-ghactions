@@ -1,0 +1,22 @@
+name: Build and Validate
+on:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        dockerfile: [image-upload/Dockerfile]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build image ${{matrix.dockerfile}}
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          context: .
+          file: ${{matrix.dockerfile}}
