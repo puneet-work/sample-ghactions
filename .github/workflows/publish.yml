@@ -4,6 +4,9 @@ on:
 
 jobs:
   create-release:
+    strategy:
+      matrix:
+        dockerfile: [image-upload/Dockerfile]
     runs-on: ubuntu-20.04
     steps:
       - name: Check out code
