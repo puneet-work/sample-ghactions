@@ -56,7 +56,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
           # tags: gh-img-aarch64:1.2.0
-          outputs: type=docker,dest=/tmp/gh-img-aarch64.tar
+          # outputs: type=docker,dest=/tmp/gh-img-aarch64.tar
           tags: ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
       # - name: Upload image
       #   uses: actions/upload-artifact@v2
