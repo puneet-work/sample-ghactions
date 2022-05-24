@@ -87,10 +87,15 @@ jobs:
           docker load --input /tmp/gh-img-x86_64.tar
           docker load --input /tmp/gh-img-aarch64.tar
           docker image ls -a
-      # - name: 'stitch multiplatform'
-      #   run: |
-      #     docker manifest create gh-img:1.2
-      #       ghcr.io/puneet-work/images/gh-img:manifest-latest \
-      #       --amend your-username/multiarch-example:manifest-amd64 \
-      #       --amend your-username/multiarch-example:manifest-arm32v7 \
-      #       --amend your-username/multiarch-example:manifest-arm64v8
+      - name: 'stitch multiplatform'
+        run: |
+          docker manifest create gh-img:1.2.0 gh-img-x86_64:1.2.0 gh-img-aarch64:1.2.0
+          docker manifest annotate --arch amd64 gh-img:1.2.0 gh-img-x86_64:1.2.0
+          docker manifest annotate --arch arm64 gh-img:1.2.0 gh-img-aarch64:1.2.0
+
+          docker manifest inspect --verbose gh-img:1.2.0
+
+            # ghcr.io/puneet-work/images/gh-img:manifest-latest \
+            # --amend your-username/multiarch-example:manifest-amd64 \
+            # --amend your-username/multiarch-example:manifest-arm32v7 \
+            # --amend your-username/multiarch-example:manifest-arm64v8
