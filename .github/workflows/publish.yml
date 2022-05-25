@@ -38,15 +38,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          # tags: gh-img-x86_64:1.2.0
-          # outputs: type=docker,dest=/tmp/gh-img-x86_64.tar
-          tags: ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0
-
-      # - name: Upload image
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: gh-img-x86_64
-      #     path: /tmp/gh-img-x86_64.tar
+          tags: localhost:5000/name/gh-img-x86_64:1.2.0
 
       - name: Build arch specific image
         uses: docker/build-push-action@v2
@@ -55,14 +47,42 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
-          # tags: gh-img-aarch64:1.2.0
-          # outputs: type=docker,dest=/tmp/gh-img-aarch64.tar
-          tags: ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
-      # - name: Upload image
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: gh-img-aarch64
-      #     path: /tmp/gh-img-aarch64.tar
+          tags: localhost:5000/name/gh-img-aarch64:1.2.0
+
+    # localhost:5000/name/app:latest
+
+    # - name: Build arch specific image
+    #   uses: docker/build-push-action@v2
+    #   with:
+    #     push: true
+    #     context: .
+    #     file: ${{ matrix.dockerfile }}
+    #     platforms: linux/amd64
+    #     # tags: gh-img-x86_64:1.2.0
+    #     # outputs: type=docker,dest=/tmp/gh-img-x86_64.tar
+    #     tags: ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0
+
+    # # - name: Upload image
+    # #   uses: actions/upload-artifact@v2
+    # #   with:
+    # #     name: gh-img-x86_64
+    # #     path: /tmp/gh-img-x86_64.tar
+
+    # - name: Build arch specific image
+    #   uses: docker/build-push-action@v2
+    #   with:
+    #     push: true
+    #     context: .
+    #     file: ${{ matrix.dockerfile }}
+    #     platforms: linux/arm64
+    #     # tags: gh-img-aarch64:1.2.0
+    #     # outputs: type=docker,dest=/tmp/gh-img-aarch64.tar
+    #     tags: ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
+    # # - name: Upload image
+    # #   uses: actions/upload-artifact@v2
+    # #   with:
+    # #     name: gh-img-aarch64
+    # #     path: /tmp/gh-img-aarch64.tar
 
   publish:
     runs-on: ubuntu-20.04
@@ -93,12 +113,32 @@ jobs:
       #     docker load --input /tmp/gh-img-x86_64.tar
       #     docker load --input /tmp/gh-img-aarch64.tar
       #     docker image ls -a
+      # - name: 'stitch multiplatform'
+      #   run: |
+      #     docker manifest create \
+      #       ghcr.io/puneet-work/images/gh-img:1.2.0 \
+      #       --amend ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0 \
+      #       --amend ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
+
+      #     docker manifest inspect ghcr.io/puneet-work/images/gh-img:1.2.0
+      #     docker manifest push ghcr.io/puneet-work/images/gh-img:1.2.0
+
+      #     # docker manifest annotate --arch amd64 gh-img:1.2.0 gh-img-x86_64:1.2.0
+      #     # docker manifest annotate --arch arm64 gh-img:1.2.0 gh-img-aarch64:1.2.0
+
+      #     # docker manifest inspect --verbose gh-img:1.2.0
+
+      #       # ghcr.io/puneet-work/images/gh-img:manifest-latest \
+      #       # --amend your-username/multiarch-example:manifest-amd64 \
+      #       # --amend your-username/multiarch-example:manifest-arm32v7 \
+      #       # --amend your-username/multiarch-example:manifest-arm64v8
+
       - name: 'stitch multiplatform'
         run: |
           docker manifest create \
             ghcr.io/puneet-work/images/gh-img:1.2.0 \
-            --amend ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0 \
-            --amend ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
+            --amend localhost:5000/name/gh-img-x86_64:1.2.0 \
+            --amend localhost:5000/name/gh-img-aarch64:1.2.0
 
           docker manifest inspect ghcr.io/puneet-work/images/gh-img:1.2.0
           docker manifest push ghcr.io/puneet-work/images/gh-img:1.2.0
