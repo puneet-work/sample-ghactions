@@ -7,7 +7,6 @@ jobs:
     strategy:
       matrix:
         dockerfile: [image-upload/Dockerfile]
-    services:
     runs-on: ubuntu-20.04
     steps:
       - name: Check out code
