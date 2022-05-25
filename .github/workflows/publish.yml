@@ -7,6 +7,11 @@ jobs:
     strategy:
       matrix:
         dockerfile: [image-upload/Dockerfile]
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     runs-on: ubuntu-20.04
     steps:
       - name: Check out code
