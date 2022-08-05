@@ -1,137 +1,143 @@
-# name: Publish artifacts
-# on:
-#   pull_request:
+name: Publish artifacts
 
-# jobs:
-#   build:
-#     strategy:
-#       matrix:
-#         dockerfile: [image-upload/Dockerfile]
-#     runs-on: ubuntu-20.04
-#     steps:
-#       - name: Check out code
-#         uses: actions/checkout@v2
-#         with:
-#           fetch-depth: 0
+on:
+  push:
+    branches:
+      - main
 
-#       - name: Set up QEMU
-#         uses: docker/setup-qemu-action@v1
+jobs:
+  tag-release:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v2
+      - name: Tag and Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release@v17.3.8
 
-#       - name: Determine version
-#         id: version
-#         run: echo ::set-output name=version::$(git describe --abbrev=0 --tags)
+  build:
+    strategy:
+      matrix:
+        dockerfile: [image-upload/Dockerfile]
+    runs-on: ubuntu-20.04
+    needs: [ tag-release ]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-#       - name: Login to Github container registry
-#         uses: docker/login-action@v1
-#         with:
-#           registry: 'ghcr.io'
-#           username: ${{ github.actor }}
-#           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
 
-#       - name: Build arch specific image
-#         uses: docker/build-push-action@v2
-#         with:
-#           push: false
-#           context: .
-#           file: ${{ matrix.dockerfile }}
-#           platforms: linux/amd64
-#           tags: gh-img-x86_64:1.2.0
-#           outputs: type=docker,dest=/tmp/gh-img-x86_64.tar
-#           # tags: ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-#       - name: Upload image
-#         uses: actions/upload-artifact@v2
-#         with:
-#           name: gh-img-x86_64
-#           path: /tmp/gh-img-x86_64.tar
+      - name: Determine version
+        id: version
+        run: echo ::set-output name=version::$(git describe --abbrev=0 --tags | sed 's/v//g')
 
-#       - name: Build arch specific image
-#         uses: docker/build-push-action@v2
-#         with:
-#           push: false
-#           context: .
-#           file: ${{ matrix.dockerfile }}
-#           platforms: linux/arm64
-#           tags: gh-img-aarch64:1.2.0
-#           outputs: type=docker,dest=/tmp/gh-img-aarch64.tar
-#           # tags: ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
+      - name: print version
+        run: |
+          echo "The version is ${{ steps.version.outputs.version }}"
 
-#       - name: Upload image
-#         uses: actions/upload-artifact@v2
-#         with:
-#           name: gh-img-aarch64
-#           path: /tmp/gh-img-aarch64.tar
+      - name: Install necessary packages
+        run: |
+          echo "11"
+          jq --version > /dev/null || curl -sS https://webinstall.dev/jq | bash
+          sudo apt-get -y install coreutils notary
+          echo "12"
 
-#   publish:
-#     runs-on: ubuntu-20.04
-#     needs: [build]
-#     steps:
-#       - name: Login to Github container registry
-#         uses: docker/login-action@v1
-#         with:
-#           registry: 'ghcr.io'
-#           username: ${{ github.actor }}
-#           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Dockerhub registry
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v2
+      - name: Setup docker trust keys
+        run: |
+          base64 --help
+          key_dir=$HOME/.docker/trust/private
+          mkdir -p ${key_dir}
 
-#       - name: 'download for x86'
-#         uses: actions/download-artifact@v2
-#         with:
-#           name: gh-img-x86_64
-#           path: /tmp
-#       - name: 'download for aarch64'
-#         uses: actions/download-artifact@v2
-#         with:
-#           name: gh-img-aarch64
-#           path: /tmp
-#       - name: Load images
-#         run: |
-#           docker load --input /tmp/gh-img-x86_64.tar
-#           docker load --input /tmp/gh-img-aarch64.tar
-#           docker image ls -a
-#           docker manifest inspect gh-img-x86_64:1.2.0
-#           docker manifest inspect gh-img-aarch64:1.2.0
-#       # - name: 'stitch multiplatform'
-#       #   run: |
-#       #     docker manifest create \
-#       #       ghcr.io/puneet-work/images/gh-img:1.2.0 \
-#       #       --amend ghcr.io/puneet-work/images/gh-img-x86_64:1.2.0 \
-#       #       --amend ghcr.io/puneet-work/images/gh-img-aarch64:1.2.0
+          echo "${{ secrets.DOCKER_REPOSITORY_KEY }}" | base64 -d > ${key_dir}/${{ secrets.DOCKER_REPOSITORY_KEY_ID }}.key;
+          chmod 600 ${key_dir}/${{ secrets.DOCKER_REPOSITORY_KEY_ID }}.key
 
-#       #     docker manifest inspect ghcr.io/puneet-work/images/gh-img:1.2.0
-#       #     docker manifest push ghcr.io/puneet-work/images/gh-img:1.2.0
+          echo "${{ secrets.DOCKER_SIGNER_KEY }}" | base64 -d > ${key_dir}/${{ secrets.DOCKER_SIGNER_KEY_ID }}.key;
+          chmod 600 ${key_dir}/${{ secrets.DOCKER_SIGNER_KEY_ID }}.key
 
-#       #     # docker manifest annotate --arch amd64 gh-img:1.2.0 gh-img-x86_64:1.2.0
-#       #     # docker manifest annotate --arch arm64 gh-img:1.2.0 gh-img-aarch64:1.2.0
+      - name: Load the repository key
+        run: |
+          key_dir="$HOME/.docker/trust/private"
+          docker trust key load "${key_dir}"/${{ secrets.DOCKER_REPOSITORY_KEY_ID }}.key
+        env:
+          DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE: ${{ secrets.DOCKER_TRUST_REPOSITORY_PASSPHRASE }}
 
-#       #     # docker manifest inspect --verbose gh-img:1.2.0
+      - name: Load signer key
+        run: |
+          key_dir="$HOME/.docker/trust/private"
+          docker trust key load "${key_dir}"/${{ secrets.DOCKER_SIGNER_KEY_ID }}.key
+        env:
+          DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE: ${{ secrets.DOCKER_TRUST_SIGNER_PASSPHRASE }}
 
-#       #       # ghcr.io/puneet-work/images/gh-img:manifest-latest \
-#       #       # --amend your-username/multiarch-example:manifest-amd64 \
-#       #       # --amend your-username/multiarch-example:manifest-arm32v7 \
-#       #       # --amend your-username/multiarch-example:manifest-arm64v8
+      - name: Build and push amd64 image
+        run: |
+          docker build --platform linux/amd64 -t itspuneet59/sample-actions:${{ steps.version.outputs.version }}-amd64 -f ${{matrix.dockerfile}} ./image-upload
+          docker push itspuneet59/sample-actions:${{ steps.version.outputs.version }}-amd64
+        # uses: docker/build-push-action@v2
+        # with:
+        #   push: false
+        #   context: .
+        #   file: ${{matrix.dockerfile}}
+        #   platforms: linux/amd64
+        #   tags: itspuneet59/sample-actions:${{ steps.version.outputs.version }}-amd64
+        env:
+          DOCKER_BUILDKIT: 1
+          DOCKER_CONTENT_TRUST: 1
+          DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE: ${{ secrets.DOCKER_TRUST_SIGNER_PASSPHRASE }}
 
-#       # - name: 'stitch multiplatform'
-#       #   run: |
-#       #     docker manifest create \
-#       #       ghcr.io/puneet-work/images/gh-img:1.2.0 \
-#       #       --amend localhost:5000/name/gh-img-x86_64:1.2.0 \
-#       #       --amend localhost:5000/name/gh-img-aarch64:1.2.0
+      - name: Build and push arm64 image
+        run: |
+          docker build --platform linux/arm64 -t itspuneet59/sample-actions:${{ steps.version.outputs.version }}-arm64 -f ${{matrix.dockerfile}} ./image-upload
+          docker push itspuneet59/sample-actions:${{ steps.version.outputs.version }}-arm64
+        # uses: docker/build-push-action@v2
+        # with:
+        #   push: false
+        #   context: .
+        #   file: ${{matrix.dockerfile}}
+        #   platforms: linux/arm64
+        #   tags: itspuneet59/sample-actions:${{ steps.version.outputs.version }}-arm64
+        env:
+          DOCKER_BUILDKIT: 1
+          DOCKER_CONTENT_TRUST: 1
+          DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE: ${{ secrets.DOCKER_TRUST_SIGNER_PASSPHRASE }}
 
-#       #     docker manifest inspect ghcr.io/puneet-work/images/gh-img:1.2.0
-#       #     docker manifest push ghcr.io/puneet-work/images/gh-img:1.2.0
+      - name: create a manifest and push
+        id: manifest
+        run: |
+          set -eu
 
-#       #     # docker manifest annotate --arch amd64 gh-img:1.2.0 gh-img-x86_64:1.2.0
-#       #     # docker manifest annotate --arch arm64 gh-img:1.2.0 gh-img-aarch64:1.2.0
-
-#       #     # docker manifest inspect --verbose gh-img:1.2.0
-
-#       #       # ghcr.io/puneet-work/images/gh-img:manifest-latest \
-#       #       # --amend your-username/multiarch-example:manifest-amd64 \
-#       #       # --amend your-username/multiarch-example:manifest-arm32v7 \
-#       #       # --amend your-username/multiarch-example:manifest-arm64v8
+          docker manifest create itspuneet59/sample-actions:${{ steps.version.outputs.version }} \
+            itspuneet59/sample-actions:"${{ steps.version.outputs.version }}-amd64" \
+            itspuneet59/sample-actions:"${{ steps.version.outputs.version }}-arm64"
+          manifest_sha=$(docker manifest push itspuneet59/sample-actions:${{ steps.version.outputs.version }} --purge | cut -d':' -f2)
+          echo ::set-output name=manifest_sha::${manifest_sha}
+          manifest_numbytes=$(docker manifest inspect itspuneet59/sample-actions:${{ steps.version.outputs.version }} -v | jq -r '.[].Descriptor.size' | head -1)
+          echo ::set-output name=manifest_numbytes::${manifest_numbytes}
+      - name: sign an image
+        run: |
+          set -eu
+          export NOTARY_AUTH=$(echo "${{ secrets.DOCKERHUB_USER }}:${{ secrets.DOCKERHUB_PASSWORD }}" | base64)
+          echo "sha: ${{ steps.manifest.outputs.manifest_sha }}"
+          echo "numbytes: ${{ steps.manifest.outputs.manifest_numbytes }}"
+          # run notary command to sign
+          notary -d $HOME/.docker/trust/ -s "${{ env.NOTARY_SERVER_URL }}" addhash docker.io/itspuneet59/sample-actions ${{ steps.version.outputs.version }} \
+            ${{ steps.manifest.outputs.manifest_numbytes }} --sha256 ${{ steps.manifest.outputs.manifest_sha }} --publish --verbose;
+        env:
+          DOCKER_CONTENT_TRUST: 1
+          NOTARY_SERVER_URL: 'https://notary.docker.io'
+          NOTARY_TARGETS_PASSPHRASE: ${{ secrets.DOCKER_TRUST_REPOSITORY_PASSPHRASE }}
